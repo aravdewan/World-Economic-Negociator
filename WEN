@@ -1,0 +1,156 @@
+// Player Country
+let playerCountry = {
+    name: "India",
+    GDP: 3000,
+    resources: { oil: 100, wheat: 50, electronics: 70 },
+    politicalTies: { USA: 5, China: 3, Egypt: 4 },
+    tariff: 10,
+    influence: 50
+};
+
+// AI Countries
+let countries = [
+    { name: "USA", GDP: 21000, resources: { oil: 200, wheat: 100, electronics: 150 }, tariff: 5, influence: 70 },
+    { name: "China", GDP: 14000, resources: { oil: 150, wheat: 80, electronics: 200 }, tariff: 8, influence: 60 },
+    { name: "Egypt", GDP: 400, resources: { oil: 50, wheat: 120, electronics: 20 }, tariff: 12, influence: 40 }
+];
+
+let turn = 1;
+let gdpHistory = [playerCountry.GDP];
+let influenceHistory = [playerCountry.influence];
+
+// Display Player Info
+function displayPlayer() {
+    let div = document.getElementById("player-country");
+    div.innerHTML = `
+        <p><strong>Country:</strong> ${playerCountry.name}</p>
+        <p><strong>GDP:</strong> $${playerCountry.GDP} B</p>
+        <p><strong>Resources:</strong> Oil-${playerCountry.resources.oil}, Wheat-${playerCountry.resources.wheat}, Electronics-${playerCountry.resources.electronics}</p>
+        <p><strong>Tariff:</strong> ${playerCountry.tariff}%</p>
+        <p><strong>Influence:</strong> ${playerCountry.influence}</p>
+    `;
+}
+
+// Display Trade Options
+function displayTradeOptions() {
+    let div = document.getElementById("trade-options");
+    div.innerHTML = "";
+    countries.forEach((country, index) => {
+        let countryDiv = document.createElement("div");
+        countryDiv.innerHTML = `
+            <h3>${country.name}</h3>
+            <p>GDP: $${country.GDP} B | Tariff: ${country.tariff}% | Influence: ${country.influence}</p>
+            <label>Resource:
+                <select id="resource-${index}">
+                    <option value="oil">Oil</option>
+                    <option value="wheat">Wheat</option>
+                    <option value="electronics">Electronics</option>
+                </select>
+            </label>
+            <label>Quantity:
+                <input type="number" id="qty-${index}" value="10" min="1">
+            </label>
+            <button onclick="negotiate(${index})">Negotiate</button>
+        `;
+        div.appendChild(countryDiv);
+    });
+}
+
+// Trade History Log
+function logTrade(message) {
+    let ul = document.getElementById("trade-history");
+    let li = document.createElement("li");
+    li.textContent = message;
+    ul.appendChild(li);
+}
+
+// Export Trade History
+document.getElementById("export-history").addEventListener("click", () => {
+    let ul = document.getElementById("trade-history");
+    let items = Array.from(ul.getElementsByTagName("li")).map(li => li.textContent);
+    let csvContent = "data:text/csv;charset=utf-8," + items.join("\n");
+    let encodedUri = encodeURI(csvContent);
+    let link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "trade_history.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+
+// Negotiation Function
+function negotiate(index) {
+    let country = countries[index];
+    let resource = document.getElementById(`resource-${index}`).value;
+    let qty = parseInt(document.getElementById(`qty-${index}`).value);
+
+    if (playerCountry.resources[resource] < qty) {
+        alert("Not enough resources!");
+        return;
+    }
+
+    let baseValue = qty * (Math.random() * 10 + 20);
+    let tariffEffect = baseValue * (country.tariff / 100);
+    let politicalBonus = ((playerCountry.politicalTies[country.name] || 3) / 10) * (baseValue - tariffEffect);
+    let netValue = baseValue - tariffEffect + politicalBonus;
+
+    playerCountry.GDP += Math.floor(netValue);
+    playerCountry.resources[resource] -= qty;
+
+    playerCountry.influence += Math.floor(Math.random() * 3);
+    country.influence += Math.floor(Math.random() * 2);
+
+    logTrade(`Turn ${turn}: Traded ${qty} ${resource} with ${country.name}, GDP +$${Math.floor(netValue)}B`);
+
+    gdpHistory.push(playerCountry.GDP);
+    influenceHistory.push(playerCountry.influence);
+
+    displayPlayer();
+    displayStats();
+    updateCharts();
+}
+
+// Display Stats
+function displayStats() {
+    let div = document.getElementById("stats");
+    div.innerHTML = `<p>Turn: ${turn}</p>
+                     <p>GDP: $${playerCountry.GDP} B</p>
+                     <p>Influence: ${playerCountry.influence}</p>`;
+}
+
+// Charts
+let gdpChart = new Chart(document.getElementById('gdpChart'), {
+    type: 'line',
+    data: {
+        labels: [0],
+        datasets: [{
+            label: 'GDP',
+            data: [playerCountry.GDP],
+            borderColor: 'green',
+            fill: false
+        }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
+
+let influenceChart = new Chart(document.getElementById('influenceChart'), {
+    type: 'line',
+    data: {
+        labels: [0],
+        datasets: [{
+            label: 'Influence',
+            data: [playerCountry.influence],
+            borderColor: 'blue',
+            fill: false
+        }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+});
+
+function updateCharts() {
+    gdpChart.data.labels.push(turn);
+    gdpChart.data.datasets[0].data.push(playerCountry.GDP);
+    gdpChart.update();
+
+    influenceChart.data.labels.push(turn);
+    influenceChart
